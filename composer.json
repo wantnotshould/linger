@@ -1,0 +1,11 @@
+{
+	"name": "wantnotshould/linger",
+	"autoload": {
+		"psr-4": {
+			"app\\": "app/"
+		}
+	},
+	"require": {
+		"php": ">=8.4.3"
+	}
+}
