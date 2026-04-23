@@ -3,7 +3,10 @@
 	"autoload": {
 		"psr-4": {
 			"app\\": "app/"
-		}
+		},
+		"files": [
+			"helper/helper.php"
+		]
 	},
 	"require": {
 		"php": ">=8.4.3"
