@@ -15,12 +15,14 @@ class Request
     protected array $query;
     protected array $body;
     protected array $server;
+    protected array $files;
 
     public function __construct()
     {
         $this->query = $_GET;
         $this->body = $this->parseBody();
         $this->server = $_SERVER;
+        $this->files = $_FILES;
     }
 
     protected function parseBody(): array
@@ -36,6 +38,42 @@ class Request
         return $body;
     }
 
+    public function all(): array
+    {
+        return array_merge($this->query, $this->body);
+    }
+
+    public function query(?string $key = null, $default = null)
+    {
+        return $key ? ($this->query[$key] ?? $default) : $this->query;
+    }
+
+    public function input(string $key, $default = null, bool $trim = true)
+    {
+        $data = $this->all();
+        $value = $data[$key] ?? $default;
+
+        if ($trim && is_string($value)) {
+            $value = trim($value);
+        }
+
+        return $value;
+    }
+
+    public function only(array $keys): array
+    {
+        return array_intersect_key($this->all(), array_flip($keys));
+    }
+
+    public function except(array $keys): array
+    {
+        $all = $this->all();
+        foreach ($keys as $key) {
+            unset($all[$key]);
+        }
+        return $all;
+    }
+
     public function method(): string
     {
         return strtoupper($this->server['REQUEST_METHOD'] ?? 'GET');
@@ -47,19 +85,43 @@ class Request
         return '/' . trim($path, '/');
     }
 
-    public function query(?string $key = null, $default = null)
+    public function isGet(): bool
     {
-        return $key ? ($this->query[$key] ?? $default) : $this->query;
+        return $this->method() === 'GET';
     }
 
-    public function input(?string $key = null, $default = null)
+    public function isPost(): bool
     {
-        return $key ? ($this->body[$key] ?? $default) : $this->body;
+        return $this->method() === 'POST';
+    }
+
+    public function isAjax(): bool
+    {
+        return $this->header('X-Requested-With') === 'XMLHttpRequest';
+    }
+
+    public function file(string $key)
+    {
+        return $this->files[$key] ?? null;
+    }
+
+    public function hasFile(string $key): bool
+    {
+        return isset($this->files[$key]) && $this->files[$key]['error'] === UPLOAD_ERR_OK;
     }
 
     public function header(string $key): ?string
     {
-        $key = 'HTTP_' . strtoupper(str_replace('-', '_', $key));
+        $key = str_replace('-', '_', strtoupper($key));
+        if (!str_starts_with($key, 'HTTP_') && $key !== 'CONTENT_TYPE' && $key !== 'CONTENT_LENGTH') {
+            $key = 'HTTP_' . $key;
+        }
         return $this->server[$key] ?? null;
+    }
+
+    public function fullUrl(): string
+    {
+        $protocol = $this->header('HTTPS') === 'on' ? 'https' : 'http';
+        return $protocol . "://" . $this->header('HOST') . $this->server['REQUEST_URI'];
     }
 }

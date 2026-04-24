@@ -21,6 +21,6 @@ class IndexController
 
     public function info(Request $request, $id)
     {
-        dd($request->query('name'), $id);
+        dd($request->only(['name']), $id);
     }
 }
