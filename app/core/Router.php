@@ -43,49 +43,36 @@ class Router
         ];
     }
 
-    private static function method(): string
-    {
-        if (isset($_POST['_method'])) {
-            return strtoupper($_POST['_method']);
-        }
-        return $_SERVER['REQUEST_METHOD'] ?? 'GET';
-    }
-
     private static function callHandler(mixed $handler, array $params, Request $request): void
     {
         $container = Container::getInstance();
         $container->bind(Request::class, fn() => $request);
 
-        if ($handler instanceof \Closure) {
-            $args = array_merge([$request], array_values($params));
-            $result = call_user_func_array($handler, $args);
-            if ($result !== null) {
-                echo $result;
-            }
-            return;
-        }
-
-        if (!is_string($handler) || !str_contains($handler, '@')) {
-            throw new Exception('format invalid. Use Controller@Method.');
-        }
-
-        [$class, $method] = explode('@', $handler, 2);
-        if (!class_exists($class)) {
-            throw new Exception("class [$class] not found.");
-        }
-
-        $controller = $container->make($class);
-
-        if (!method_exists($controller, $method)) {
-            throw new Exception("method [$method] not found in [$class].");
-        }
-        
         $args = array_merge([$request], array_values($params));
-        $response = call_user_func_array([$controller, $method], $args);
 
-        if ($response !== null) {
-            echo $response;
+        if ($handler instanceof \Closure) {
+            $result = call_user_func_array($handler, $args);
+        } else {
+            if (!is_string($handler) || !str_contains($handler, '@')) {
+                throw new Exception("Invalid handler format. Use 'Controller@Method'.");
+            }
+
+            [$class, $method] = explode('@', $handler, 2);
+
+            $controller = $container->make($class);
+
+            if (!method_exists($controller, $method)) {
+                throw new Exception("Method [$method] not found in [$class].");
+            }
+
+            $result = call_user_func_array([$controller, $method], $args);
         }
+
+        if (!$result instanceof Response) {
+            $result = new Response($result);
+        }
+
+        $result->send();
     }
 
     private static function match(string $method, string $uri): ?array

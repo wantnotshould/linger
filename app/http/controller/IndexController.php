@@ -12,7 +12,7 @@ namespace app\http\controller;
 
 use app\core\Request;
 
-class IndexController
+class IndexController extends BaseController
 {
     public function index()
     {
@@ -21,6 +21,11 @@ class IndexController
 
     public function info(Request $request, $id)
     {
-        dd($request->only(['name']), $id);
+        return $this->success([
+            'controller' => 'IndexController@info',
+            'params' => $request->all(),
+            'header' => $request->allHeaders(),
+            'full_url' => $request->fullUrl(),
+        ]);
     }
 }

@@ -76,7 +76,17 @@ class Request
 
     public function method(): string
     {
-        return strtoupper($this->server['REQUEST_METHOD'] ?? 'GET');
+        $method = strtoupper($this->server['REQUEST_METHOD'] ?? 'GET');
+
+        if ($method === 'POST') {
+            $spoofedMethod = strtoupper($this->body['_method'] ?? $this->header('X-HTTP-METHOD-OVERRIDE') ?? '');
+
+            if (in_array($spoofedMethod, ['PUT', 'DELETE', 'PATCH'])) {
+                return $spoofedMethod;
+            }
+        }
+
+        return $method;
     }
 
     public function path(): string
@@ -117,6 +127,26 @@ class Request
             $key = 'HTTP_' . $key;
         }
         return $this->server[$key] ?? null;
+    }
+
+    public function allHeaders(): array
+    {
+        $headers = [];
+        foreach ($this->server as $key => $value) {
+            // 处理以 HTTP_ 开头的字段
+            if (str_starts_with($key, 'HTTP_')) {
+                // 去掉 HTTP_ 前缀，将下划线转回中划线，转为小写
+                // 例如: HTTP_USER_AGENT -> user-agent
+                $name = str_replace('_', '-', strtolower(substr($key, 5)));
+                $headers[$name] = $value;
+            }
+            // 特殊处理 Content-Type 和 Content-Length
+            elseif (in_array($key, ['CONTENT_TYPE', 'CONTENT_LENGTH'])) {
+                $name = str_replace('_', '-', strtolower($key));
+                $headers[$name] = $value;
+            }
+        }
+        return $headers;
     }
 
     public function fullUrl(): string
