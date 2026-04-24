@@ -10,9 +10,17 @@ declare(strict_types=1);
 
 namespace app\http\controller;
 
+use app\core\Request;
 use app\traits\ResponseTrait;
 
 class BaseController
 {
     use ResponseTrait;
+
+    protected Request $request;
+
+    public function __construct(Request $request)
+    {
+        $this->request = $request;
+    }
 }

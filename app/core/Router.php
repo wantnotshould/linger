@@ -45,26 +45,19 @@ class Router
 
     private static function callHandler(mixed $handler, array $params, Request $request): void
     {
+        // 避免：Object of class app\core\Request could not be converted to int in 
+
         $container = Container::getInstance();
         $container->bind(Request::class, fn() => $request);
 
-        $args = array_merge([$request], array_values($params));
-
         if ($handler instanceof \Closure) {
+            $args = self::resolveArgs($handler, $params, $request);
             $result = call_user_func_array($handler, $args);
         } else {
-            if (!is_string($handler) || !str_contains($handler, '@')) {
-                throw new Exception("Invalid handler format. Use 'Controller@Method'.");
-            }
-
             [$class, $method] = explode('@', $handler, 2);
-
             $controller = $container->make($class);
 
-            if (!method_exists($controller, $method)) {
-                throw new Exception("Method [$method] not found in [$class].");
-            }
-
+            $args = self::resolveArgs([$controller, $method], $params, $request);
             $result = call_user_func_array([$controller, $method], $args);
         }
 
@@ -73,6 +66,32 @@ class Router
         }
 
         $result->send();
+    }
+
+    private static function resolveArgs(callable|array $callback, array $params, Request $request): array
+    {
+        // 如果是 [Controller, Method] 数组格式
+        if (is_array($callback)) {
+            $reflection = new \ReflectionMethod($callback[0], $callback[1]);
+        } else {
+            // 如果是匿名函数/闭包
+            $reflection = new \ReflectionFunction($callback);
+        }
+
+        $finalArgs = [];
+        foreach ($reflection->getParameters() as $param) {
+            $type = $param->getType();
+            $name = $param->getName();
+
+            if ($type && $type->getName() === Request::class) {
+                $finalArgs[] = $request;
+            } elseif (isset($params[$name])) {
+                $finalArgs[] = $params[$name];
+            } elseif (!empty($params)) {
+                $finalArgs[] = array_shift($params);
+            }
+        }
+        return $finalArgs;
     }
 
     private static function match(string $method, string $uri): ?array

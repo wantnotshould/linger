@@ -1,8 +1,7 @@
-# Linger
+# linger
 
-```bash
-git clone https://github.com/wantnotshould/linger.git
-cd linger
-composer install
-php -S localhost:8000 -t ./public/
-```
+### ext
+
+- [Redis](https://github.com/phpredis/phpredis/blob/develop/INSTALL.md)
+- [Memcache](https://pecl.php.net/package/memcache)
+- [Memcached](https://github.com/php-memcached-dev/php-memcached) *issues/563*

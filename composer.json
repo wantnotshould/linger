@@ -9,6 +9,8 @@
 		]
 	},
 	"require": {
-		"php": ">=8.4.3"
+		"php": ">=8.4.3",
+		"illuminate/database": "^13.6",
+		"illuminate/events": "^13.6"
 	}
 }
