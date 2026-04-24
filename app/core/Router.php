@@ -32,10 +32,10 @@ class Router
             $prefix = $group['prefix'] ?? '';
         }
 
-        $trimmedPrefix = trim($prefix, '/');
-        $trimmedPath = trim($path, '/');
-        $combined = ($trimmedPrefix !== '' ? '/' . $trimmedPrefix : '') . '/' . $trimmedPath;
-        $finalPath = '/' . trim($combined, '/');
+        $finalPath = '/' . trim(trim($prefix, '/') . '/' . trim($path, '/'), '/');
+        if ($finalPath === '//') {
+            $finalPath = '/';
+        }
 
         self::$routes[$method][] = [
             'path' => $finalPath === '' ? '/' : $finalPath,
@@ -45,13 +45,18 @@ class Router
 
     private static function method(): string
     {
+        if (isset($_POST['_method'])) {
+            return strtoupper($_POST['_method']);
+        }
         return $_SERVER['REQUEST_METHOD'] ?? 'GET';
     }
 
     private static function callHandler(mixed $handler, array $params): void
     {
+        $container = Container::getInstance();
+
         if ($handler instanceof \Closure) {
-            $result = $handler($params);
+            $result = call_user_func_array($handler, array_values($params));
             if ($result !== null) echo $result;
             return;
         }
@@ -61,16 +66,21 @@ class Router
         }
 
         [$class, $method] = explode('@', $handler, 2);
-        if (!class_exists($class)) throw new Exception("class [$class] not found.");
+        if (!class_exists($class)) {
+            throw new Exception("class [$class] not found.");
+        }
 
-        $controller = new $class;
+        $controller = $container->make($class);
 
-        $controller = new $class();
         if (!method_exists($controller, $method)) {
             throw new Exception("method [$method] not found in [$class].");
         }
 
-        echo $controller->$method($params);
+        $response = call_user_func_array([$controller, $method], array_values($params));
+
+        if ($response !== null) {
+            echo $response;
+        }
     }
 
     private static function match(string $method, string $uri): ?array
@@ -110,5 +120,25 @@ class Router
     public static function get(string $path, mixed  $handler): void
     {
         self::addRoute('GET', $path, $handler);
+    }
+
+    public static function post(string $path, mixed $handler): void
+    {
+        self::addRoute('POST', $path, $handler);
+    }
+
+    public static function put(string $path, mixed $handler): void
+    {
+        self::addRoute('PUT', $path, $handler);
+    }
+
+    public static function delete(string $path, mixed $handler): void
+    {
+        self::addRoute('DELETE', $path, $handler);
+    }
+
+    public static function patch(string $path, mixed $handler): void
+    {
+        self::addRoute('PATCH', $path, $handler);
     }
 }
