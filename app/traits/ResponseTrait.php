@@ -14,6 +14,11 @@ use app\core\Response;
 
 trait ResponseTrait
 {
+    private function response(mixed $content = '', int $statusCode = 200): Response
+    {
+        return new Response($content, $statusCode);
+    }
+
     private function apiResponse(bool $status, string $message, int $code, mixed $data = null): Response
     {
         return $this->json([
@@ -22,6 +27,17 @@ trait ResponseTrait
             'code'    => $code,
             'data'    => $data,
         ], $code);
+    }
+
+    public function withToken(string $token, int $minutes = 60): Response
+    {
+        return $this->success(['token_status' => 'set'])
+            ->withCookie('auth_token', $token, $minutes);
+    }
+
+    public function expireCookie(string $name): Response
+    {
+        return $this->response()->withCookie($name, '', -1);
     }
 
     public function success(mixed $data = null, string $message = 'Success', int $code = 200): Response

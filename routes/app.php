@@ -17,3 +17,4 @@ Router::get('/', function () {
 
 Router::get('index', IndexController::class . '@index');
 Router::get('info/{id}', IndexController::class . '@info');
+Router::get('test-cookie', IndexController::class . '@cookie');

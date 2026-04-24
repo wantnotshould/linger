@@ -16,6 +16,7 @@ class Request
     protected array $body;
     protected array $server;
     protected array $files;
+    protected array $cookies;
 
     public function __construct()
     {
@@ -23,6 +24,7 @@ class Request
         $this->body = $this->parseBody();
         $this->server = $_SERVER;
         $this->files = $_FILES;
+        $this->cookies = $_COOKIE;
     }
 
     protected function parseBody(): array
@@ -153,5 +155,15 @@ class Request
     {
         $protocol = $this->header('HTTPS') === 'on' ? 'https' : 'http';
         return $protocol . "://" . $this->header('HOST') . $this->server['REQUEST_URI'];
+    }
+
+    public function cookie(string $key, $default = null)
+    {
+        return $this->cookies[$key] ?? $default;
+    }
+
+    public function allCookies(): array
+    {
+        return $this->cookies;
     }
 }
