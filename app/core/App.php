@@ -30,5 +30,6 @@ class App
     public function run(): void
     {
         $this->boot();
+        Router::dispatch();
     }
 }
