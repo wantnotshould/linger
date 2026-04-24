@@ -10,16 +10,26 @@ declare(strict_types=1);
 
 namespace app\core;
 
-use Exception;
-
 class Router
 {
     protected static array $routes = [];
     protected static array $groupStack = [];
 
-    public static function group(string $prefix, callable $callback): void
+    public static function group(array $attributes, callable $callback): void
     {
-        self::$groupStack[] = ['prefix' => trim($prefix, '/')];
+        $prefix = $attributes['prefix'] ?? '';
+        $middleware = $attributes['middleware'] ?? [];
+
+        if (!empty(self::$groupStack)) {
+            $parent = end(self::$groupStack);
+            $middleware = array_merge($parent['middleware'] ?? [], $middleware);
+        }
+
+        self::$groupStack[] = [
+            'prefix' => trim($prefix, '/'),
+            'middleware' => $middleware
+        ];
+
         $callback();
         array_pop(self::$groupStack);
     }
@@ -27,9 +37,12 @@ class Router
     private static function addRoute(string $method, string $path, mixed $handler): void
     {
         $prefix = '';
+        $middleware = [];
+
         if (!empty(self::$groupStack)) {
             $group = end(self::$groupStack);
             $prefix = $group['prefix'] ?? '';
+            $middleware = $group['middleware'] ?? [];
         }
 
         $finalPath = '/' . trim(trim($prefix, '/') . '/' . trim($path, '/'), '/');
@@ -40,10 +53,11 @@ class Router
         self::$routes[$method][] = [
             'path' => $finalPath === '' ? '/' : $finalPath,
             'handler' => $handler,
+            'middleware' => $middleware,
         ];
     }
 
-    private static function callHandler(mixed $handler, array $params, Request $request): void
+    private static function callHandler(mixed $handler, array $params, Request $request): Response
     {
         // 避免：Object of class app\core\Request could not be converted to int in 
 
@@ -65,7 +79,8 @@ class Router
             $result = new Response($result);
         }
 
-        $result->send();
+        // 这里不再直接 send()，而是返回 Response 对象让管道流转
+        return $result;
     }
 
     private static function resolveArgs(callable|array $callback, array $params, Request $request): array
@@ -105,6 +120,7 @@ class Router
                 return [
                     'handler' => $route['handler'],
                     'params' => $params,
+                    'middleware' => $route['middleware'],
                 ];
             }
         }
@@ -125,7 +141,36 @@ class Router
             return;
         }
 
-        self::callHandler($route['handler'], $route['params'], $request);
+        // 中间件
+        $middleware = $route['middleware'];
+
+        // 模拟 Laravel 的洋葱模型
+        // 最终目的地是执行 Controller 逻辑
+        $destination = function (Request $request) use ($route) {
+            return self::callHandler($route['handler'], $route['params'], $request);
+        };
+
+        // 倒序排列中间件，确保顺序执行
+        $pipeline = array_reduce(
+            array_reverse($middleware),
+            function ($stack, $pipe) {
+                return function (Request $request) use ($stack, $pipe) {
+                    $instance = Container::getInstance()->make($pipe);
+                    return $instance->handle($request, $stack);
+                };
+            },
+            $destination
+        );
+
+        try {
+            $response = $pipeline($request);
+            if ($response instanceof Response) {
+                $response->send();
+            }
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(['status' => false, 'msg' => $e->getMessage()]);
+        }
     }
 
     public static function get(string $path, mixed  $handler): void
