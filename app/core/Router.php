@@ -146,8 +146,8 @@ class Router
 
         // 模拟 Laravel 的洋葱模型
         // 最终目的地是执行 Controller 逻辑
-        $destination = function (Request $request) use ($route) {
-            return self::callHandler($route['handler'], $route['params'], $request);
+        $destination = function (Request $currentRequest) use ($route) {
+            return self::callHandler($route['handler'], $route['params'], $currentRequest);
         };
 
         // 倒序排列中间件，确保顺序执行
@@ -164,12 +164,19 @@ class Router
 
         try {
             $response = $pipeline($request);
-            if ($response instanceof Response) {
-                $response->send();
+            if (!$response instanceof Response) {
+                $response = new Response($response);
             }
+
+            $response->send();
         } catch (\Exception $e) {
             http_response_code(500);
-            echo json_encode(['status' => false, 'msg' => $e->getMessage()]);
+            echo json_encode([
+                'status' => false,
+                'message' => 'Server Error: ' . $e->getMessage(),
+                'code' => 500,
+                'data' => null
+            ], JSON_UNESCAPED_UNICODE);
         }
     }
 
