@@ -51,13 +51,17 @@ class Router
         return $_SERVER['REQUEST_METHOD'] ?? 'GET';
     }
 
-    private static function callHandler(mixed $handler, array $params): void
+    private static function callHandler(mixed $handler, array $params, Request $request): void
     {
         $container = Container::getInstance();
+        $container->bind(Request::class, fn() => $request);
 
         if ($handler instanceof \Closure) {
-            $result = call_user_func_array($handler, array_values($params));
-            if ($result !== null) echo $result;
+            $args = array_merge([$request], array_values($params));
+            $result = call_user_func_array($handler, $args);
+            if ($result !== null) {
+                echo $result;
+            }
             return;
         }
 
@@ -75,8 +79,9 @@ class Router
         if (!method_exists($controller, $method)) {
             throw new Exception("method [$method] not found in [$class].");
         }
-
-        $response = call_user_func_array([$controller, $method], array_values($params));
+        
+        $args = array_merge([$request], array_values($params));
+        $response = call_user_func_array([$controller, $method], $args);
 
         if ($response !== null) {
             echo $response;
@@ -102,9 +107,9 @@ class Router
 
     public static function dispatch(): void
     {
-        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-        $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-        $uri = '/' . trim($uri, '/');
+        $request = new Request();
+        $method = $request->method();
+        $uri = $request->path();
 
         $route = self::match($method, $uri);
 
@@ -114,7 +119,7 @@ class Router
             return;
         }
 
-        self::callHandler($route['handler'], $route['params']);
+        self::callHandler($route['handler'], $route['params'], $request);
     }
 
     public static function get(string $path, mixed  $handler): void

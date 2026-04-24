@@ -10,10 +10,17 @@ declare(strict_types=1);
 
 namespace app\http\controller;
 
+use app\core\Request;
+
 class IndexController
 {
     public function index()
     {
         echo 'hello, IndexController@index';
+    }
+
+    public function info(Request $request, $id)
+    {
+        dd($request->query('name'), $id);
     }
 }

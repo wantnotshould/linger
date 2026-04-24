@@ -16,3 +16,4 @@ Router::get('/', function () {
 });
 
 Router::get('index', IndexController::class . '@index');
+Router::get('info/{id}', IndexController::class . '@info');
