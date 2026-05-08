@@ -25,9 +25,9 @@ class UserController extends BaseController
     }
 
     // 在 BaseController 中定义了 Request $request
-    public function info($id)
+    public function info(int $id)
     {
-        $user = $this->userService->findUser((int)$id);
+        $user = $this->userService->findUser($id);
 
         if (!$user) {
             return $this->error("用户不存在", 404);
