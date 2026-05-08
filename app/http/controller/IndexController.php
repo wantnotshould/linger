@@ -19,7 +19,7 @@ class IndexController extends BaseController
         echo 'hello, IndexController@index';
     }
 
-    public function info(Request $request, $id)
+    public function info(Request $request, int $id)
     {
         return $this->success([
             'controller' => 'IndexController@info',
